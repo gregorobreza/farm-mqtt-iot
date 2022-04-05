@@ -1,0 +1,59 @@
+version: '3'
+services:
+  mongo:
+    image: mongo
+    restart: always
+    container_name: mongo-dev
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    volumes:
+      - ./data/mongo:/data/db
+      # for now no test data
+      #- ./data/mongo-init:/docker-entrypoint-initdb.d
+    ports:
+      - "27017:27017"
+  mongo-express:
+    image: mongo-express:0.54.0
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_USER}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_PASSWORD}
+      ME_CONFIG_MONGODB_SERVER: mongo-dev
+    depends_on:
+      - mongo
+  fastapi:
+    build:
+      context: ./
+      dockerfile: fastapi.dockerfile
+    volumes:
+      - ./fastapi:/code
+    ports:
+      - 8000:8000
+    environment:
+      MONGODB_HOST: mongo
+      MONGODB_PORT: 27017
+      MONGODB_USER: ${MONGO_USER}
+      MONGODB_PASSWORD: ${MONGO_PASSWORD}
+      PYTHONPATH: /app
+  react:
+    build:
+      context: ./
+      dockerfile: react.dockerfile
+    volumes:
+      - './farm-react:/app'
+      - ./farm-react/node_modules
+    ports:
+      - 3000:3000
+  mqtt-mosquitto:
+    image: eclipse-mosquitto
+    restart: always
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    ports:
+      - 1883:1883
+      - 9001:9001

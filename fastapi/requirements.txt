@@ -1,0 +1,9 @@
+fastapi[all]
+uvicorn[standard]
+pymongo>=3.4
+pydantic
+python-dateutil
+Pillow>=2.0.0
+mongoengine
+fastapi-mqtt
+
