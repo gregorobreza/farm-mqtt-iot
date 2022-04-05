@@ -1,5 +1,5 @@
 # FARM stack and MQTT Broker
-This is dev enviroment for FARM stack with mosquitto MQTT Broker. Ideal for simple IoT projects
+This is dev enviroment for FARM stack with mosquitto MQTT Broker. Ideal for simple IoT projects or creating microservice. 
 
 # Security
 You must add the environment variables MONGO_USER and MONGO_PASSWORD to your environment. You can also add a ".env" file to the root of your system with the environment variables.
