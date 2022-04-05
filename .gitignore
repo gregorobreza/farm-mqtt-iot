@@ -132,3 +132,5 @@ dmypy.json
 farm-react/.idea
 fastapi/.idea
 data/mongo
+
+.devcontainer

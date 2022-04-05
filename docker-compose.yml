@@ -28,6 +28,7 @@ services:
     build:
       context: ./
       dockerfile: fastapi.dockerfile
+    restart: on-failure
     volumes:
       - ./fastapi:/code
     ports:
@@ -38,6 +39,8 @@ services:
       MONGODB_USER: ${MONGO_USER}
       MONGODB_PASSWORD: ${MONGO_PASSWORD}
       PYTHONPATH: /app
+    depends_on:
+      - mongo
   react:
     build:
       context: ./

@@ -4,6 +4,6 @@ pymongo>=3.4
 pydantic
 python-dateutil
 Pillow>=2.0.0
-mongoengine
+motor
 fastapi-mqtt
 

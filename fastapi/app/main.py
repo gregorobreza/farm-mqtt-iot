@@ -1,10 +1,21 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
 from pymongo import MongoClient
 import os
 from urllib.parse import quote_plus
 from fastapi.middleware.cors import CORSMiddleware
+from .models import Vehicle, Trip, Positions
+from typing import Optional
+
+
+from .database import (
+    fetch_one_vehicle,
+    fetch_all_vehicles,
+    create_vehicle,
+    update_vehicle,
+    remove_vehicle,
+)
 
 
 origins = [
@@ -14,6 +25,7 @@ origins = [
 
 
 app = FastAPI()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -21,34 +33,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-mongo_client = None
-
-
-def get_client():
-    """
-    Setup a mongo client for the site
-    :return:
-    """
-    global mongo_client
-    if bool(mongo_client):
-        return mongo_client
-    host = os.getenv('MONGODB_HOST', '')
-    username = os.getenv('MONGODB_USER', '')
-    password = os.getenv('MONGODB_PASSWORD', '')
-    port = int(os.getenv('MONGODB_PORT', 27017))
-    endpoint = 'mongodb://{0}:{1}@{2}'.format(quote_plus(username),
-                                              quote_plus(password), host)
-    mongo_client = MongoClient(endpoint, port)
-    return mongo_client
-
-
-class ComicIssue(BaseModel):
-    id: int
-    number: str
-    series_name: str
-    on_sale_date: str
-    price: str
-    publisher_name: str
 
 
 @app.get('/')
@@ -56,13 +40,36 @@ async def root():
     return {'message': 'Hello World'}
 
 
-@app.get('/comics/{title}/{issue_number}', response_model=List[ComicIssue])
-async def get_comic_issues(title: str, issue_number: str): 
-    criteria = {'series_name': title, 'number': issue_number}
-    client = get_client()
-    db = client.farmdemo
-    issues = db.issues.find(criteria)
-    data = list()
-    for issue in issues:
-        data.append(ComicIssue(**issue))
-    return data
+@app.get("/api/vehicle")
+async def get_vehicles():
+    response = await fetch_all_vehicles()
+    return response
+
+@app.get("/api/vehicle/{serial}", response_model=Vehicle)
+async def get_vehicle_by_title(serial: str):
+    response = await fetch_one_vehicle(serial)
+    if response:
+        return response
+    raise HTTPException(404, f"There is no vehicle with the serial {serial}")
+
+@app.post("/api/vehicle/", response_model=Vehicle)
+async def create_one_vehicle(vehicle: Vehicle):
+    response = await create_vehicle(vehicle.dict())
+    if response:
+        return response
+    raise HTTPException(400, "Something went wrong")
+
+@app.put("/api/todo/{serial}/", response_model=Vehicle)
+async def update_one_vehicle(serial: str, title: Optional[str] = None, description: Optional[str] = None):
+    para = {"title": title, "description": description}
+    response = await update_vehicle(serial, **para)
+    if response:
+        return response
+    raise HTTPException(404, f"There is no Vehicle with the serial {serial}")
+
+@app.delete("/api/vehicle/{serial}")
+async def delete_vehicle(serial: str):
+    response = await remove_vehicle(serial)
+    if response:
+        return "Successfully deleted vehicle"
+    raise HTTPException(404, f"There is no todo with the title {serial}")
