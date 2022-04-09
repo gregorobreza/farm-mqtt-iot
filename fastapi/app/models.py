@@ -1,6 +1,6 @@
 from typing import Optional, List, Literal
 from pydantic import BaseModel, Field
-import datetime
+from datetime import date, datetime, time, timedelta
 import uuid
 
 
@@ -18,12 +18,14 @@ class Positions(BaseModel):
 
 
 class Trip(BaseModel):
-    # start: datetime.datetime
-    # end: Optional[datetime.datetime] = None
-    # duration: Optional[datetime.timedelta] = None
+    start: Optional[datetime] = None
+    end: Optional[datetime] = None
+    duration: Optional[timedelta] = None
     distance: Optional[float] = None
     reason: str
-    vehicle_serial: int
+    first_name: str
+    last_name: str
+    vehicle_serial: str
 
 
 class Vehicle(BaseModel):
@@ -34,3 +36,9 @@ class Vehicle(BaseModel):
     vehicle_type: Literal["electric", "diesel", "petrol"]
     active: bool
 
+class UpdateVehicle(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    owner: Optional[str] = None
+    vehicle_type: Optional[Literal["electric", "diesel", "petrol"]] = None
+    active: Optional[bool] = None

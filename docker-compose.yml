@@ -31,6 +31,8 @@ services:
     restart: on-failure
     volumes:
       - ./fastapi:/code
+    expose:
+      - 1883
     ports:
       - 8000:8000
     environment:
@@ -41,6 +43,8 @@ services:
       PYTHONPATH: /app
     depends_on:
       - mongo
+
+    
   react:
     build:
       context: ./
@@ -57,6 +61,9 @@ services:
       - ./mosquitto/config:/mosquitto/config
       - ./mosquitto/data:/mosquitto/data
       - ./mosquitto/log:/mosquitto/log
+    expose:
+      - 1883
     ports:
       - 1883:1883
       - 9001:9001
+

@@ -2,6 +2,7 @@ import motor.motor_asyncio
 from .models import Trip, Vehicle
 import os
 from urllib.parse import quote_plus
+from fastapi import HTTPException
 
 
 mongo_client = None
@@ -26,37 +27,55 @@ def get_client():
     
 mongo_client = get_client()
 database = mongo_client.VehicleTrips
-collection = database["vehicle"]
+vehicle_collection = database["vehicle"]
+trip_collection = database["trip"]
 
-async def fetch_one_vehicle(serial):
-    document = await collection.find_one({"serial": serial})
+async def fetch_one_vehicle(serial:str):
+    document = await vehicle_collection.find_one({"serial": serial})
     return document
 
 async def fetch_all_vehicles():
     vehicles = []
-    cursor = collection.find({})
+    cursor = vehicle_collection.find({})
     async for document in cursor:
         vehicles.append(Vehicle(**document))
     return vehicles
 
+async def fetch_all_vehicles_serials():
+    vehicles_serials = []
+    cursor = vehicle_collection.find({}, {"serial":1, "_id":0})
+    async for document in cursor:
+        vehicles_serials.append(document)
+    return vehicles_serials
+
 async def create_vehicle(vehicle):
+    serial = vehicle["serial"]
+    exists = await vehicle_collection.find_one({"serial": serial})
+    if exists:
+        raise HTTPException(404, f"Vehicle with the serial {serial} already exists.")
     document = vehicle
-    result = await collection.insert_one(document)
+    result = await vehicle_collection.insert_one(document)
     return document
 
 
 async def update_vehicle(serial: str, **kwargs):
-    await collection.update_one({"serial": serial}, 
+    await vehicle_collection.update_one({"serial": serial}, 
     {"$set": kwargs})
-    # {"title":title,
-    # "description": desc,
-    # "owner": owner,
-    # "vehicle_type": vehicle_type,
-    # "active": active}})
-    document = await collection.find_one({"serial": serial})
+    if "serial" in kwargs.keys():
+        serial = kwargs["serial"]
+    document = await vehicle_collection.find_one({"serial": serial})
     return document
 
-async def remove_vehicle(serial):
-    await collection.delete_one({"serial": serial})
+async def remove_vehicle(serial: str):
+    await vehicle_collection.delete_one({"serial": serial})
     return True
 
+async def create_trip(trip):
+    vehicle_serial = trip["vehicle_serial"]
+    trip_document = trip
+    vehicle_document = await vehicle_collection.find_one({"serial": vehicle_serial})
+    if vehicle_document:
+        result = await trip_collection.insert_one(trip_document)
+        return trip_document
+    else:
+        raise HTTPException(400, "Thers no car with that serial")
