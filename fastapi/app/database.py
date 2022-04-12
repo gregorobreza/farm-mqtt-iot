@@ -1,8 +1,12 @@
+from datetime import datetime
+import uuid
 import motor.motor_asyncio
-from .models import Trip, Vehicle
+from .models import Trip, Vehicle, Position
 import os
 from urllib.parse import quote_plus
 from fastapi import HTTPException
+from uuid import UUID
+from bson.binary import UuidRepresentation
 
 
 mongo_client = None
@@ -22,13 +26,14 @@ def get_client():
     port = int(os.getenv('MONGODB_PORT', 27017))
     endpoint = 'mongodb://{0}:{1}@{2}'.format(quote_plus(username),
                                               quote_plus(password), host)
-    mongo_client = motor.motor_asyncio.AsyncIOMotorClient(endpoint, port)
+    mongo_client = motor.motor_asyncio.AsyncIOMotorClient(endpoint, port, uuidRepresentation="standard")
     return mongo_client
     
 mongo_client = get_client()
 database = mongo_client.VehicleTrips
 vehicle_collection = database["vehicle"]
 trip_collection = database["trip"]
+position_collection = database["position"]
 
 async def fetch_one_vehicle(serial:str):
     document = await vehicle_collection.find_one({"serial": serial})
@@ -79,3 +84,37 @@ async def create_trip(trip):
         return trip_document
     else:
         raise HTTPException(400, "Thers no car with that serial")
+
+async def fetch_all_trips():
+    trips = []
+    cursor = trip_collection.find({})
+    async for document in cursor:
+        trips.append(Trip(**document))
+    return trips
+
+async def fetch_one_trip(trip_id):
+    document = await trip_collection.find_one({"trip_id": trip_id})
+    return document
+
+async def finish_trip(trip_id, **kwargs):
+    await trip_collection.update_one({"trip_id": trip_id}, {"$set": kwargs})
+    document = await trip_collection.find_one({"trip_id": trip_id})
+    return document
+
+async def remove_trip(trip_id):
+    await trip_collection.delete_one({"trip_id": trip_id})
+    return True
+
+async def save_current_position(position:Position):
+    trip_id = position["trip_id"]
+    position_message = position
+    position_message["timestamp"] = datetime.utcnow()
+    trip_document = await trip_collection.find_one({"trip_id": UUID(trip_id)})
+    if trip_document:
+        result = await position_collection.insert_one(position_message)
+        return True
+    else:
+        raise HTTPException(400, "There is no trip with that id. ")
+
+async def check_before_finish(trip_id):
+    pass

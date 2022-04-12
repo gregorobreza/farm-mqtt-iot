@@ -1,9 +1,9 @@
 fastapi[all]
 uvicorn[standard]
-pymongo>=3.4
+pymongo
 pydantic
 python-dateutil
-Pillow>=2.0.0
+Pillow
 motor
 fastapi-mqtt
 
