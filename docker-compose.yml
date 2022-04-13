@@ -44,7 +44,7 @@ services:
     depends_on:
       - mongo
 
-    
+  
   react:
     build:
       context: ./

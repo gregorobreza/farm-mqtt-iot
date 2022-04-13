@@ -28,32 +28,29 @@ class CheckBeforeFinish(BaseModel):
 
 
 class FinishTrip(BaseModel):
-    trip_id: uuid.UUID
-    end: datetime = Field(default_factory=datetime.utcnow)
-    end_km: Optional[float] = None
+    end_km: float
 
 class Trip(BaseModel):
     trip_id : uuid.UUID = Field(default_factory=uuid.uuid4)
     start: datetime = Field(default_factory=datetime.utcnow)
     end: Optional[datetime] = None
-    #duration: Optional[timedelta] = None
-    start_km: Optional[float] = None
+    duration: float = None
+    start_km: float = 0
     end_km: Optional[float] = None 
-    distance: Optional[float] = None
+    trip_distance: Optional[float] = None
     reason: str
     first_name: str
     last_name: str
-    vehicle_serial: str
+    vehicle_id: uuid.UUID
     finished: bool = False
 
-    class Config:
-        allow_population_by_field_name = True
 
 
 class Vehicle(BaseModel):
-    serial: str
+    vehicle_id : uuid.UUID = Field(default_factory=uuid.uuid4)
+    qr_code: Optional[str]
     title: str
-    qr_code: Dict[str, str] 
+    registration_plate :str
     description: Optional[str] = None
     owner: str
     vehicle_type: Literal["electric", "diesel", "petrol"]

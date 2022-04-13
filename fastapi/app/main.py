@@ -1,5 +1,4 @@
 from fastapi import FastAPI, HTTPException, Path
-from pydantic import BaseModel
 from typing import List
 import os
 from urllib.parse import quote_plus
@@ -19,7 +18,7 @@ from .database import (
     remove_trip,
     update_vehicle,
     remove_vehicle,
-    fetch_all_vehicles_serials,
+    fetch_all_vehicles_vehicle_ids,
     create_trip,
     fetch_all_trips,
     finish_trip,
@@ -82,10 +81,10 @@ async def root():
 
 @app.get("/api/vehicle/connect")
 async def subscribe_vehicles():
-    response = await fetch_all_vehicles_serials()
+    response = await fetch_all_vehicles_vehicle_ids()
     for item in response:
-        serial = item["serial"]
-        topic = f"vehicle/{serial}/#"
+        vehicle_id = item["vehicle_id"]
+        topic = f"vehicle/{vehicle_id}/#"
         fast_mqtt.client.subscribe(topic)   
     return response
 
@@ -94,45 +93,45 @@ async def get_vehicles():
     response = await fetch_all_vehicles()
     return response
 
-@app.get("/api/vehicle/{serial}", response_model=Vehicle)
-async def get_vehicle_by_id(serial: str = Path(None, description="The serial of the Vehicle")):
-    response = await fetch_one_vehicle(serial)
+@app.get("/api/vehicle/{vehicle_id}", response_model=Vehicle)
+async def get_vehicle_by_id(vehicle_id: uuid.UUID = Path(None, description="The vehicle_id of the Vehicle")):
+    response = await fetch_one_vehicle(vehicle_id)
     if response:
-        serial = response["serial"]
-        topic = f"vehicle/{serial}/#"
+        vehicle_id = response["vehicle_id"]
+        topic = f"vehicle/{vehicle_id}/#"
         fast_mqtt.client.subscribe(topic) 
         return response
-    raise HTTPException(404, f"There is no vehicle with the serial {serial}")
+    raise HTTPException(404, f"There is no vehicle with the vehicle_id {vehicle_id}")
 
 @app.post("/api/vehicle/", response_model=Vehicle)
 async def create_one_vehicle(vehicle: Vehicle):
     response = await create_vehicle(vehicle.dict())
-    serial = vehicle.dict()["serial"]
+    vehicle_id = vehicle.dict()["vehicle_id"]
     if response:
-        topic = f"vehicle/{serial}/#"
+        topic = f"vehicle/{vehicle_id}/#"
         fast_mqtt.client.subscribe(topic)  
         return response
     raise HTTPException(400, "Something went wrong")
 
-@app.patch("/api/vehicle/{serial}/", response_model=Vehicle)
-async def update_one_vehicle(serial: str, vehicle: UpdateVehicle):
+@app.patch("/api/vehicle/{vehicle_id}/", response_model=Vehicle)
+async def update_one_vehicle(vehicle_id: uuid.UUID, vehicle: UpdateVehicle):
     update_data = vehicle.dict(exclude_unset=True)
-    response = await update_vehicle(serial, **update_data)
+    response = await update_vehicle(vehicle_id, **update_data)
     if response:
         return response
-    raise HTTPException(404, f"There is no Vehicle with the serial {serial}")
+    raise HTTPException(404, f"There is no Vehicle with the vehicle_id {vehicle_id}")
 
-@app.delete("/api/vehicle/{serial}")
-async def delete_vehicle(serial: str):
-    response = await remove_vehicle(serial)
+@app.delete("/api/vehicle/{vehicle_id}")
+async def delete_vehicle(vehicle_id: uuid.UUID):
+    response = await remove_vehicle(vehicle_id)
     if response:
         return "Successfully deleted vehicle"
-    raise HTTPException(404, f"There is no todo with the title {serial}")
+    raise HTTPException(404, f"There is no todo with the title {vehicle_id}")
 
 
-@app.get("/api/vehicle/check/{serial}")
-async def check_vehicles(serial: str):
-    fast_mqtt.publish(f"vehicle/{serial}/check", "Hello from Fastapi")
+@app.get("/api/vehicle/check/{vehicle_id}")
+async def check_vehicles(vehicle_id: uuid.UUID):
+    fast_mqtt.publish(f"vehicle/{vehicle_id}/check", "Hello from Fastapi")
     
     return {"result": True,"message":"Published" }
 
@@ -140,15 +139,17 @@ async def check_vehicles(serial: str):
 @app.post("/api/trip/", response_model=Trip)
 async def create_a_trip(trip: Trip):
     trip_dics = trip.dict()
-    serial = trip_dics["vehicle_serial"]
-    topic = f"vehicle/{serial}/#"
+    vehicle_id = trip_dics["vehicle_id"]
+    topic = f"vehicle/{vehicle_id}/#"
     fast_mqtt.client.subscribe(topic)
-    vehicle = await fetch_one_vehicle(serial)
-    trip_dics["start_km"] = vehicle["current_km"]
-    response = await create_trip(trip_dics)
-    if response:
-        return response
-    raise HTTPException(400, "Something went wrong")
+    vehicle = await fetch_one_vehicle(vehicle_id)
+    if vehicle:
+        trip_dics["start_km"] = vehicle["current_km"]
+        response = await create_trip(trip_dics)
+        if response:
+            return response
+        raise HTTPException(400, "Something went wrong")
+    raise HTTPException(404, f"Vehicle with the vehicle_id {vehicle_id} doesn't exist.")
 
 
 @app.get("/api/trips/")
@@ -157,17 +158,17 @@ async def get_trips():
     return response
 
 @app.get("/api/trips/{trip_id}/finish/", response_model=CheckBeforeFinish)
-async def finish_trip(trip_id: uuid.UUID):
+async def before_finish_trip(trip_id: uuid.UUID):
     response = await check_before_finish(trip_id)
     return response
 
 @app.patch("/api/trip/{trip_id}/save/", response_model=Trip)
-async def finish_and_save_trip(trip_id: uuid.UUID, finish_trip: FinishTrip):
-    update_data = finish_trip.dict(exclude_unset=True)
+async def finish_and_save_trip(trip_id: uuid.UUID, finished_trip: FinishTrip):
+    update_data = finished_trip.dict(exclude_unset=True)
     response = await finish_trip(trip_id, **update_data)
     if response:
         return response
-    raise HTTPException(404, f"There is no Vehicle with the serial {trip_id}")
+    raise HTTPException(404, f"There is no Vehicle with the vehicle_id {trip_id}")
 
 
 @app.delete("/api/trip/{trip_id}")
